@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# ─────────────────────────────
+# Script Usage
+# ─────────────────────────────
+# Example:
+#   backup-site denkengewinnen.com
+#
+# Takes:
+#   APP_NAME = site name / domain (without protocol)
+# ─────────────────────────────
+
+APP_NAME="${1:-}"
+
+if [[ -z "$APP_NAME" ]]; then
+    echo "Usage: backup-site <app_name_or_domain>"
+    exit 1
+fi
+
+# ─────────────────────────────
+# Basic Paths
+# ─────────────────────────────
+PROJECT_ROOT="/var/www/$APP_NAME"
+ENV_FILE="/etc/webapp/$APP_NAME.env"
+SERVICE_UNIT="/etc/systemd/system/webapp@${APP_NAME}.service"
+NGINX_AVAIL="/etc/nginx/sites-available/$APP_NAME"
+NGINX_ENABLED="/etc/nginx/sites-enabled/$APP_NAME"
+SSL_DIR="/etc/ssl/$APP_NAME"
+
+BACKUP_DIR="/var/backups/sites/$APP_NAME"
+DATE="$(date +'%Y%m%d-%H%M%S')"
+BACKUP_FILE="$BACKUP_DIR/${APP_NAME}-${DATE}.tar.gz"
+
+# ─────────────────────────────
+# Prepare backup directory
+# ─────────────────────────────
+mkdir -p "$BACKUP_DIR"
+
+echo "=================================================="
+echo "  SITE BACKUP"
+echo "  App Name   : $APP_NAME"
+echo "  Backup Dir : $BACKUP_DIR"
+echo "  Backup File: $BACKUP_FILE"
+echo "  Date       : $(date)"
+echo "=================================================="
+
+# ─────────────────────────────
+# Collect only existing files
+# ─────────────────────────────
+FILES_TO_BACKUP=()
+
+add_if_exists() {
+    local path="$1"
+    if [[ -e "$path" ]]; then
+        echo "  + Including: $path"
+        FILES_TO_BACKUP+=("$path")
+    else
+        echo "  - Skipping (not found): $path"
+    fi
+}
+
+add_if_exists "$PROJECT_ROOT"
+add_if_exists "$ENV_FILE"
+add_if_exists "$SERVICE_UNIT"
+add_if_exists "$NGINX_AVAIL"
+add_if_exists "$NGINX_ENABLED"
+add_if_exists "$SSL_DIR"
+
+if [[ "${#FILES_TO_BACKUP[@]}" -eq 0 ]]; then
+    echo "No files found to backup for $APP_NAME. Aborting."
+    exit 1
+fi
+
+# ─────────────────────────────
+# Create the backup archive
+# ─────────────────────────────
+echo
+echo "[1/2] Creating backup archive..."
+tar -czf "$BACKUP_FILE" \
+    --warning=no-file-changed \
+    "${FILES_TO_BACKUP[@]}"
+
+echo "Backup created successfully:"
+echo "  $BACKUP_FILE"
+echo
+
+# ─────────────────────────────
+# Remove backups older than 2 days
+# ─────────────────────────────
+echo "[2/2] Cleaning backups older than 2 days for $APP_NAME ..."
+find "$BACKUP_DIR" -type f -mtime +2 -name "${APP_NAME}-*.tar.gz" -print -delete
+
+echo "Cleanup finished."
+echo "=================================================="
+echo "  DONE"
+echo "=================================================="

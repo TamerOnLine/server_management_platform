@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# ─────────────────────────────────────
+# Basic Settings
+# ─────────────────────────────────────
+BACKUP_DIR="/var/backups/server"
+DATE="$(date +'%Y%m%d-%H%M%S')"
+BACKUP_FILE="$BACKUP_DIR/server-backup-$DATE.tar.gz"
+
+# Backup contents (modify as needed)
+TARGETS=(
+    "/etc"
+    "/var/www"
+    "/srv"
+    "/etc/nginx"
+    "/etc/webapp"
+    "/var/log"
+)
+
+# ─────────────────────────────────────
+# Ensure the backup directory exists
+# ─────────────────────────────────────
+mkdir -p "$BACKUP_DIR"
+
+echo "========================================"
+echo "        SERVER BACKUP STARTED"
+echo "        $(date)"
+echo "========================================"
+echo "Backup file: $BACKUP_FILE"
+echo ""
+
+# ─────────────────────────────────────
+# Create the backup archive
+# ─────────────────────────────────────
+echo "[1/2] Creating backup archive..."
+
+tar -czf "$BACKUP_FILE" \
+    --warning=no-file-changed \
+    "${TARGETS[@]}"
+
+echo "Backup completed successfully!"
+echo ""
+
+# ─────────────────────────────────────
+# Delete backups older than 3 days
+# ─────────────────────────────────────
+echo "[2/2] Cleaning old backups (older than 3 days)..."
+
+find "$BACKUP_DIR" -type f -mtime +3 -name '*.tar.gz' -print -delete
+
+echo "Old backups cleanup done."
+echo ""
+
+echo "========================================"
+echo "        BACKUP PROCESS FINISHED"
+echo "========================================"

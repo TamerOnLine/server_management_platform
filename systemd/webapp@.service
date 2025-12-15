@@ -1,0 +1,25 @@
+[Unit]
+Description=FastAPI Web App - %i
+After=network.target
+
+[Service]
+User=tamer
+Group=www-data
+
+# Per-site settings: PORT, APP_MODULE, ...
+EnvironmentFile=/etc/webapp/%i.env
+
+# Project root: /var/www/%i/backend  (example: /var/www/denkengewinnen.com/backend)
+WorkingDirectory=/var/www/%i/backend
+
+# Use the project's virtual environment
+Environment="PATH=/var/www/%i/.venv/bin"
+
+# Run Uvicorn from the project venv
+ExecStart=/var/www/%i/.venv/bin/uvicorn $APP_MODULE --host 127.0.0.1 --port $PORT
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

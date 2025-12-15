@@ -1,0 +1,125 @@
+#!/bin/bash
+
+# Auto-clean script for server
+# Run as: sudo /usr/local/bin/clean-server
+
+if [[ $EUID -ne 0 ]]; then
+  echo "❌ Please run this script as root: sudo $0"
+  exit 1
+fi
+
+LOGFILE="/var/log/clean-server.log"
+DATE=$(date +"%Y-%m-%d %H:%M:%S")
+
+echo "======================================" | tee -a "$LOGFILE"
+echo "🧹 Running clean-server at $DATE" | tee -a "$LOGFILE"
+echo "======================================" | tee -a "$LOGFILE"
+
+echo "📦 Disk usage BEFORE:" | tee -a "$LOGFILE"
+df -h | tee -a "$LOGFILE"
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------
+# Step 1: APT cleanup
+# -----------------------------
+echo "▶ Step 1: APT cleanup..." | tee -a "$LOGFILE"
+apt autoremove -y >>"$LOGFILE" 2>&1 || true
+apt clean >>"$LOGFILE" 2>&1 || true
+apt autoclean >>"$LOGFILE" 2>&1 || true
+echo "✅ APT cleanup done." | tee -a "$LOGFILE"
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------
+# Step 2: Journal logs cleanup
+# -----------------------------
+echo "▶ Step 2: Journal logs cleanup..." | tee -a "$LOGFILE"
+if command -v journalctl >/dev/null 2>&1; then
+  journalctl --vacuum-size=100M >>"$LOGFILE" 2>&1 || true
+  echo "✅ journalctl vacuum done (100M max)." | tee -a "$LOGFILE"
+else
+  echo "ℹ journalctl not found, skipping." | tee -a "$LOGFILE"
+fi
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------
+# Step 3: Docker cleanup
+# -----------------------------
+echo "▶ Step 3: Docker cleanup..." | tee -a "$LOGFILE"
+if command -v docker >/dev/null 2>&1; then
+  docker system prune -af >>"$LOGFILE" 2>&1 || true
+  docker volume prune -f >>"$LOGFILE" 2>&1 || true
+  echo "✅ Docker prune done." | tee -a "$LOGFILE"
+else
+  echo "ℹ Docker not installed, skipping." | tee -a "$LOGFILE"
+fi
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------
+# Step 4: Temp cleanup
+# -----------------------------
+echo "▶ Step 4: Cleaning /tmp and /var/tmp..." | tee -a "$LOGFILE"
+rm -rf /tmp/* /var/tmp/* 2>>"$LOGFILE" || true
+echo "✅ Temp folders cleaned." | tee -a "$LOGFILE"
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------
+# Step 5: User cache cleanup
+# -----------------------------
+echo "▶ Step 5: Cleaning user cache (/home/tamer/.cache)..." | tee -a "$LOGFILE"
+if [ -d "/home/tamer/.cache" ]; then
+  rm -rf /home/tamer/.cache/* 2>>"$LOGFILE" || true
+  echo "✅ /home/tamer/.cache cleaned." | tee -a "$LOGFILE"
+else
+  echo "ℹ /home/tamer/.cache not found, skipping." | tee -a "$LOGFILE"
+fi
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------
+# Step 6: Keep only last 2 backups
+# -----------------------------
+echo "▶ Step 6: Keep only last 2 backups..." | tee -a "$LOGFILE"
+
+keep_last_n () {
+  local dir="$1"
+  local pattern="$2"
+  local keep="${3:-2}"
+
+  [ -d "$dir" ] || return 0
+
+  ls -1t "$dir"/$pattern 2>/dev/null | tail -n +$((keep+1)) | while read -r f; do
+    echo "Deleting: $f" | tee -a "$LOGFILE"
+    rm -f "$f" >>"$LOGFILE" 2>&1 || true
+  done
+}
+
+
+keep_last_n "/var/backups/server" "*.tar.gz" 2
+keep_last_n "/var/backups/sites"  "*.tar.gz" 2
+
+echo "✅ Backup retention done (kept last 2)." | tee -a "$LOGFILE"
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------
+# Final disk usage
+# -----------------------------
+echo "📦 Disk usage AFTER:" | tee -a "$LOGFILE"
+df -h | tee -a "$LOGFILE"
+
+echo "✅ clean-server finished." | tee -a "$LOGFILE"
+echo "Log saved to: $LOGFILE"
+
+
+# -----------------------------
+# Step 7: Clean old site backup directories (older than 3 days)
+# -----------------------------
+echo "▶ Step 7: Cleaning old site backup directories..." | tee -a "$LOGFILE"
+
+find /var/backups/sites \
+  -mindepth 1 -maxdepth 1 \
+  -type d -mtime +3 \
+  -exec echo "Deleting dir: {}" \; \
+  -exec rm -rf {} \; \
+  >>"$LOGFILE" 2>&1 || true
+
+echo "✅ Old site backup directories cleaned." | tee -a "$LOGFILE"
+echo "" | tee -a "$LOGFILE"

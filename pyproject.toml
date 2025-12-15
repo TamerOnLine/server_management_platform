@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pi-node-server-infra"
+version = "0.1.0"
+description = "Infrastructure toolkit for managing webapps (nginx/systemd/scripts)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+webapp = "webapp.cli:main"
