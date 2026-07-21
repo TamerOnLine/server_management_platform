@@ -1,8 +1,20 @@
-name: Run tests
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -10,16 +22,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
+          cache: pip
 
-      - name: Install dependencies (if any)
-        run: |
-          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      - name: Install project
+        run: python -m pip install --upgrade pip && python -m pip install -e .
+
+      - name: Compile source
+        run: python -m compileall -q src tests
 
       - name: Run unit tests
-        run: |
-          # Ensure CI uses local repo code for imports and subprocesses
-          export PYTHONPATH="$GITHUB_WORKSPACE:$PYTHONPATH"
-          # (Optional) remove any installed package that might shadow local code
-          pip uninstall -y reposmith-tol || true
-          python -m unittest discover -s tests -v
+        run: python -m unittest discover -s tests -v
