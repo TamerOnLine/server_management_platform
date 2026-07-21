@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .core.config import Cfg
 from .core.io import must_be_root, log, die
-from .core.validators import validate_domain, validate_port
+from .core.validators import validate_app_name, validate_domain, validate_port
 from .new import create_webapp
 from .list import list_apps
 from .update import update_site
@@ -76,6 +76,7 @@ def cmd_new(args: argparse.Namespace) -> None:
         port = _prompt_port(existing_port)
     else:
         app_name = args.app_name
+        validate_app_name(app_name)
         domain = args.domain.strip().lower()
         validate_domain(domain)
         port = int(args.port)
@@ -101,6 +102,7 @@ def cmd_list(args: argparse.Namespace) -> None:
 
 def cmd_update(args: argparse.Namespace) -> None:
     must_be_root()
+    validate_app_name(args.app_name)
     update_site(
         args.app_name,
         dry_run=args.dry_run,
@@ -111,6 +113,7 @@ def cmd_update(args: argparse.Namespace) -> None:
 
 def cmd_delete(args: argparse.Namespace) -> None:
     must_be_root()
+    validate_app_name(args.app_name)
     delete_webapp(args.app_name, yes=args.yes, dry_run=args.dry_run)
 
 

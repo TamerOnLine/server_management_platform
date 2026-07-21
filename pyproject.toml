@@ -5,13 +5,32 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pi-node-server-infra"
 version = "0.1.0"
-description = "Infrastructure toolkit for managing webapps (nginx/systemd/scripts)."
+description = "Manage Python web applications behind nginx and systemd from one CLI."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Tamer Hamad Faour" }]
+keywords = ["deployment", "fastapi", "nginx", "systemd", "infrastructure"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Systems Administration",
+]
 dependencies = []
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.urls]
+Homepage = "https://github.com/TamerOnLine/server_management_platform"
+Repository = "https://github.com/TamerOnLine/server_management_platform"
+Issues = "https://github.com/TamerOnLine/server_management_platform/issues"
 
 [project.scripts]
 webapp = "webapp.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
