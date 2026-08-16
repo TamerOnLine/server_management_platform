@@ -1,248 +1,155 @@
-# 🚀 pi-node-server-infra
+# Server Management Platform
 
-**Infrastructure Toolkit for managing multiple FastAPI / Python web applications on a single Linux server**  
-with **systemd**, **nginx**, and a unified **Python CLI (`webapp`)**.
+A lightweight infrastructure toolkit for deploying and operating multiple Python and FastAPI applications on a single Linux server.
 
-This project provides a **clean, production-ready framework** for hosting, managing, deploying, and operating
-multiple Python-based web applications on one server in a safe and scalable way.
+The platform combines a unified Python CLI named `webapp` with systemd and Nginx to make application provisioning, deployment, updates, backups, and rollback workflows consistent and repeatable.
 
----
+## Why this project exists
 
-## ✨ Key Features
+Operating several web applications on one server often leads to duplicated service files, handwritten proxy configuration, inconsistent environment variables, and risky manual deployment steps.
 
-- 🧠 **Single CLI tool**: `webapp`
-- ⚙️ Automatic **systemd service** generation (`webapp@<app>.service`)
-- 🌐 Automatic **nginx site configuration**
-- 🔐 Supports **Cloudflare Origin SSL**
-- 📦 Python-based infra tools (no fragile bash scripts)
-- 🛟 Safe **backup & rollback** during deployment
-- 🧩 Designed for **hosting many websites on one server**
+This project provides one operational interface and a predictable layout for managing those applications while keeping the underlying Linux components explicit and inspectable.
 
----
+## Key capabilities
 
-## 📁 Project Structure
+- Unified `webapp` command-line interface
+- Automated application provisioning
+- Generated systemd service configuration
+- Generated Nginx reverse-proxy configuration
+- Centralized environment configuration
+- Cloudflare Origin SSL support
+- Safe update, backup, deletion, and rollback workflows
+- Operational status and application listing
+- Support for multiple Python and FastAPI applications on one server
 
-```
-pi-node-server-infra/
-├── deploy/                 # Deployment logic (Python)
-│   └── deploy.py
-├── nginx/                  # Nginx configs (versioned)
-│   ├── sites-available/
-│   ├── snippets/
-│   └── nginx.conf
-├── systemd/                # systemd service templates
-│   └── webapp@.service
-├── scripts/
-│   └── legacy/             # Old bash tools (kept for reference)
-├── src/
-│   └── webapp/             # Python CLI package
-│       ├── cli.py          # Entry point (webapp command)
-│       ├── new.py
-│       ├── update.py
-│       ├── delete.py
-│       ├── list.py
-│       ├── env.py
-│       └── core/
-├── Docs/                   # Documentation
-├── pyproject.toml          # Python package definition
+## Architecture
+
+Each managed application:
+
+- lives under `/var/www/<app>`
+- runs through a systemd service
+- is served by Uvicorn
+- is proxied through Nginx
+- is managed through the `webapp` CLI
+
+~~~text
+Client
+  |
+Nginx
+  |
+systemd service
+  |
+Uvicorn / FastAPI application
+~~~
+
+## Technology stack
+
+- Python
+- FastAPI and Uvicorn
+- Linux
+- systemd
+- Nginx
+- Cloudflare Origin SSL
+- GitHub Actions
+- Bash for selected operational tasks
+
+## Project structure
+
+~~~text
+server_management_platform/
+├── deploy/                 # Deployment logic
+├── nginx/                  # Versioned Nginx configuration
+├── systemd/                # Service templates
+├── scripts/                # Supporting and legacy scripts
+├── src/webapp/             # Python CLI package
+├── Docs/                   # Additional documentation
+├── pyproject.toml
 ├── README.md
 └── LICENSE
-```
+~~~
 
----
+## Installation
 
-## 🧠 Core Concept
+### 1. Clone the repository
 
-Each web application:
+~~~bash
+git clone https://github.com/TamerOnLine/server_management_platform.git
+cd server_management_platform
+~~~
 
-- Lives under `/var/www/<app>`
-- Runs via:
-  ```
-  systemd → webapp@<app>.service → uvicorn
-  ```
-- Is proxied by nginx
-- Is fully managed using the `webapp` CLI
+### 2. Create a virtual environment
 
-You **never manually write nginx or systemd files** again.
-
----
-
-## ⚡ Installation (Recommended)
-
-### 1️⃣ Clone the repository
-```bash
-git clone https://github.com/www-website-online/pi-node-server-infra.git
-cd pi-node-server-infra
-```
-
-### 2️⃣ Create & activate a virtual environment
-```bash
+~~~bash
 uv venv .venv
 source .venv/bin/activate
-```
+~~~
 
-### 3️⃣ Install the CLI tool
-```bash
+### 3. Install the CLI
+
+~~~bash
 uv pip install -e .
-```
-
-### 4️⃣ Verify installation
-```bash
 webapp --help
-```
+~~~
 
----
+For system-wide use on a server, expose the installed command:
 
-## 🌍 System-wide Usage (Recommended for Servers)
+~~~bash
+sudo ln -sf "$(pwd)/.venv/bin/webapp" /usr/local/bin/webapp
+~~~
 
-After installing the CLI inside the virtual environment, you can expose
-the `webapp` command system-wide so it works without activating the venv.
+## CLI examples
 
-```bash
-sudo ln -sf /srv/pi-node-server-infra/.venv/bin/webapp /usr/local/bin/webapp
-```
+### List managed applications
 
-Now you can run:
-```bash
+~~~bash
 webapp list
+~~~
+
+### Provision an application
+
+~~~bash
 webapp new example.com
-```
-from anywhere on the server without activating `.venv`.
+~~~
 
----
+The provisioning workflow creates the environment configuration, prepares the Nginx configuration, and configures the systemd service.
 
-## 🛠️ CLI Usage
+### Update an application
 
-### List all managed webapps
-```bash
-webapp list
-```
-
-Example output:
-```
-APP                 DOMAIN                     PORT   SYSTEMD              NGINX
-denkengewinnen.com  denkengewinnen.com         8601   active/enabled       avail|en
-```
-
----
-
-### Create a new webapp
-```bash
-webapp new example.com
-```
-
-This command will:
-- Ask for a port
-- Create `/etc/webapp/example.com.env`
-- Generate nginx config
-- Generate systemd service
-- Enable the service
-
----
-
-### Update an existing webapp
-```bash
+~~~bash
 webapp update example.com
-```
-
-Options:
-```bash
 webapp update example.com --dry-run
 webapp update example.com --reload-nginx
-```
+~~~
 
----
+### Generate environment configuration
 
-### Delete a webapp (safe)
-```bash
-webapp delete example.com
-```
-
-Features:
-- Automatic backup
-- Confirmation prompt
-- systemd + nginx cleanup
-- Rollback support
-
----
-
-### Generate `.env` file for an app
-```bash
+~~~bash
 webapp env --domain example.com --port 8600
-```
+~~~
 
-Creates:
-```
-/var/www/example.com/.env
-```
+### Remove an application safely
 
-With secure defaults:
-- SECRET_KEY
-- CORS configuration
-- SMTP placeholders
+~~~bash
+webapp delete example.com
+~~~
 
----
+The deletion workflow includes confirmation, backup, configuration cleanup, and rollback-oriented safeguards.
 
-## 🚀 Deploying Infrastructure Changes
+## Operational principles
 
-After pulling updates from GitHub:
+- Prefer repeatable commands over manual server edits.
+- Keep configuration versioned and reviewable.
+- Validate changes before reloading services.
+- Back up application state before destructive operations.
+- Keep secrets outside source control.
+- Treat rollback as part of deployment design.
 
-```bash
-sudo python3 deploy/deploy.py
-```
+## Project status
 
-What this does:
-- Creates backups of:
-  - `/etc/nginx`
-  - `/etc/systemd`
-  - `/usr/local/bin`
-- Syncs configs from the repository
-- Reloads systemd
-- Tests nginx configuration
-- Reloads nginx safely
+This project is under active development and is used as a reference implementation for managing production-oriented Python web applications on Linux.
 
-Dry run:
-```bash
-sudo python3 deploy/deploy.py --dry-run
-```
+Review commands and configuration before using the toolkit on a production server. Test changes in an isolated environment first.
 
----
+## License
 
-## 🔐 SSL (Cloudflare Origin)
-
-This project is designed for **Cloudflare Full (Strict)** mode.
-
-Certificates are expected in:
-```
-/etc/ssl/<domain>/origin.crt
-/ect/ssl/<domain>/origin.key
-```
-
-See documentation under:
-```
-Docs/
-```
-
----
-
-## 🧱 Design Principles
-
-- **Single entry point** (`webapp`)
-- **Infrastructure as Code**
-- **Safe by default** (dry-run, backups)
-- **No hidden magic**
-- **Server-first mindset**
-
----
-
-## 🧑‍💻 Author
-
-**Tamer Hamad Faour**  
-Infrastructure & Backend Engineer  
-GitHub: https://github.com/www-website-online
-
----
-
-## 📜 License
-
-MIT License – see `LICENSE` file.
+Released under the MIT License. See [LICENSE](LICENSE).
